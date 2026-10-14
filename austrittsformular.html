@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Austrittsantrag</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#f2f4f7; --card:#ffffff; --dark:#2c3e50; --blue:#3498db;
+      --green:#27ae60; --red:#e74c3c; --orange:#e67e22; --border:#dee2e6;
+      --text:#2c3e50; --muted:#888; --radius:10px;
+    }
+    body { font-family:Arial,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+    header { background:var(--dark); color:white; padding:18px 24px; display:flex; align-items:center; gap:14px; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+    .logo { width:42px; height:42px; background:var(--orange); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.4em; flex-shrink:0; }
+    header h1 { font-size:1.15em; font-weight:bold; }
+    header p  { font-size:0.8em; opacity:0.7; margin-top:2px; }
+
+    main { flex:1; max-width:680px; width:100%; margin:32px auto; padding:0 16px 40px; }
+
+    .card { background:var(--card); border-radius:var(--radius); padding:28px; box-shadow:0 2px 12px rgba(0,0,0,.08); margin-bottom:20px; }
+    .card h2 { font-size:1.2em; color:var(--dark); margin-bottom:6px; }
+    .subtitle { color:var(--muted); font-size:0.88em; margin-bottom:22px; line-height:1.5; }
+
+    .steps { display:flex; margin-bottom:28px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); }
+    .step { flex:1; padding:10px 8px; text-align:center; font-size:0.78em; font-weight:bold; background:var(--bg); color:var(--muted); border-right:1px solid var(--border); }
+    .step:last-child { border-right:none; }
+    .step.active { background:var(--orange); color:white; }
+    .step.done   { background:var(--green); color:white; }
+
+    .section-label { font-size:0.78em; font-weight:bold; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:20px 0 12px; display:flex; align-items:center; gap:8px; }
+    .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-grid .full { grid-column:1/-1; }
+
+    label.field { display:flex; flex-direction:column; gap:5px; font-size:0.86em; font-weight:bold; color:var(--text); }
+    label.field .req { color:var(--red); }
+
+    input, select, textarea { width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:7px; font-size:0.95em; font-family:Arial,sans-serif; color:var(--text); background:white; transition:border-color .2s; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--orange); box-shadow:0 0 0 3px rgba(230,126,34,.12); }
+    textarea { resize:vertical; min-height:80px; }
+
+    .sig-wrap { border:2px solid var(--orange); border-radius:8px; overflow:hidden; background:white; }
+    #signatureCanvas { display:block; width:100%; height:130px; touch-action:none; cursor:crosshair; }
+    .sig-actions { display:flex; align-items:center; gap:10px; margin-top:8px; }
+    #signatureStatus { font-size:0.82em; color:var(--muted); }
+
+    .check-row { display:flex; align-items:flex-start; gap:10px; font-size:0.9em; line-height:1.5; margin-top:4px; }
+    .check-row input[type=checkbox] { width:18px; height:18px; min-width:18px; margin-top:2px; cursor:pointer; accent-color:var(--orange); }
+
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:11px 20px; border:none; border-radius:7px; font-size:0.95em; font-weight:bold; cursor:pointer; transition:opacity .15s,transform .1s; }
+    .btn:hover { opacity:.9; }
+    .btn:active { transform:scale(.98); }
+    .btn-orange { background:var(--orange); color:white; }
+    .btn-red    { background:var(--red); color:white; font-size:0.82em; padding:7px 14px; }
+    .btn-submit { width:100%; justify-content:center; font-size:1.05em; padding:14px; margin-top:6px; }
+
+    .hinweis-box { background:#fef9e7; border:1px solid #f9ca24; border-radius:7px; padding:12px 16px; font-size:0.82em; color:#7d6608; line-height:1.6; }
+    .hinweis-box strong { display:block; margin-bottom:4px; }
+
+    .dsgvo-box { background:#eaf4fb; border:1px solid #aed6f1; border-radius:7px; padding:12px 16px; font-size:0.82em; color:#1a5276; line-height:1.6; margin-top:16px; }
+    .dsgvo-box strong { display:block; margin-bottom:4px; }
+
+    #successBox { display:none; text-align:center; padding:40px 20px; }
+    #successBox .icon { font-size:4em; margin-bottom:16px; }
+    #successBox h2 { font-size:1.4em; color:var(--orange); margin-bottom:10px; }
+    #successBox p  { color:var(--muted); line-height:1.6; }
+
+    #loadingOverlay { display:none; position:fixed; inset:0; background:rgba(44,62,80,.55); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:14px; color:white; font-size:1.1em; }
+    #loadingOverlay.active { display:flex; }
+    .spinner { width:38px; height:38px; border:4px solid rgba(255,255,255,.3); border-top-color:white; border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    #errorToast { display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--red); color:white; padding:12px 22px; border-radius:8px; font-size:0.92em; z-index:9998; box-shadow:0 4px 16px rgba(0,0,0,.2); max-width:90%; text-align:center; }
+
+    footer { background:var(--dark); color:rgba(255,255,255,.5); text-align:center; padding:14px; font-size:0.78em; }
+
+    @media (max-width:520px) {
+      .form-grid { grid-template-columns:1fr; }
+      .form-grid .full { grid-column:1; }
+      main { margin:16px auto; }
+      .card { padding:20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loadingOverlay"><div class="spinner"></div><span>Wird übermittelt...</span></div>
+<div id="errorToast"></div>
+
+<header>
+  <div class="logo">&#128683;</div>
+  <div>
+    <h1 id="clubNameHeader">Vereinsverwaltung</h1>
+    <p>Online-Austrittsantrag</p>
+  </div>
+</header>
+
+<main>
+  <div class="steps">
+    <div class="step active" id="step1">1 · Deine Daten</div>
+    <div class="step" id="step2">2 · Unterschrift</div>
+    <div class="step" id="step3">3 · Bestätigung</div>
+  </div>
+
+  <div id="formBox">
+    <div class="card">
+      <h2>&#128683; Austrittsantrag</h2>
+      <p class="subtitle">
+        Schade, dass du gehst! Füll das Formular aus und schick es ab.
+        Der Vorstand bearbeitet deinen Antrag so schnell wie möglich.
+        Pflichtfelder sind mit <span style="color:#e74c3c">*</span> markiert.
+      </p>
+
+      <div class="hinweis-box">
+        <strong>&#9432; Wichtiger Hinweis</strong>
+        Der Austritt gilt laut Satzung zum Ende des laufenden Geschäftsjahres.
+        Bitte prüf vorher ob noch offene Beiträge oder Verpflichtungen bestehen.
+      </div>
+
+      <div class="section-label" style="margin-top:20px;">Persönliche Daten</div>
+      <div class="form-grid">
+        <label class="field">
+          Vorname <span class="req">*</span>
+          <input id="appFirstname" placeholder="Max" autocomplete="given-name">
+        </label>
+        <label class="field">
+          Nachname <span class="req">*</span>
+          <input id="appLastname" placeholder="Mustermann" autocomplete="family-name">
+        </label>
+        <label class="field">
+          Mitgliedsnummer
+          <input id="appMemberNumber" placeholder="z.B. 2024-001">
+        </label>
+        <label class="field">
+          Geburtsdatum
+          <input id="appBirthdate" type="date" autocomplete="bday">
+        </label>
+        <label class="field full">
+          E-Mail-Adresse <span class="req">*</span>
+          <input id="appEmail" type="email" placeholder="max@beispiel.de" autocomplete="email">
+        </label>
+        <label class="field">
+          Telefonnummer
+          <input id="appPhone" type="tel" placeholder="+49 151 …" autocomplete="tel">
+        </label>
+        <label class="field">
+          Gewünschtes Austrittsdatum
+          <input id="appExitDate" type="date">
+        </label>
+      </div>
+
+      <div class="section-label">Grund des Austritts</div>
+      <div class="form-grid">
+        <label class="field full">
+          Austrittsgrund (optional)
+          <select id="appReason">
+            <option value="">-- Bitte wählen (optional) --</option>
+            <option value="Persönliche Gründe">Persönliche Gründe</option>
+            <option value="Zeitliche Gründe">Zeitliche Gründe</option>
+            <option value="Berufliche Gründe">Berufliche Gründe</option>
+            <option value="Umzug">Umzug</option>
+            <option value="Gesundheitliche Gründe">Gesundheitliche Gründe</option>
+            <option value="Finanziell">Finanziell</option>
+            <option value="Sonstiges">Sonstiges</option>
+          </select>
+        </label>
+        <label class="field full">
+          Anmerkungen (optional)
+          <textarea id="appNote" placeholder="Falls du noch etwas sagen möchtest..."></textarea>
+        </label>
+      </div>
+
+      <div class="section-label">Digitale Unterschrift <span class="req" style="text-transform:none">*</span></div>
+      <p style="font-size:0.83em;color:var(--muted);margin-bottom:10px;">Bitte mit Maus, Finger oder Stift im Feld unterschreiben.</p>
+      <div class="sig-wrap"><canvas id="signatureCanvas" width="620" height="130"></canvas></div>
+      <div class="sig-actions">
+        <button type="button" class="btn btn-red" onclick="clearSignature()">&#128465; Löschen</button>
+        <span id="signatureStatus">Bitte hier unterschreiben</span>
+      </div>
+
+      <div class="section-label" style="margin-top:22px;">Datenschutz</div>
+      <div class="dsgvo-box">
+        <strong>Hinweis gemäß DSGVO Art. 13</strong>
+        Deine Daten werden nur zur Bearbeitung deines Austrittsantrags genutzt.
+        Nach Abschluss des Vorgangs werden sie gemäß der gesetzlichen Aufbewahrungsfrist gespeichert.
+      </div>
+      <label class="check-row" style="margin-top:16px;">
+        <input type="checkbox" id="appAgree">
+        <span>Ich beantrage hiermit meinen Austritt aus dem Verein und bestätige die Richtigkeit meiner Angaben. <span style="color:#e74c3c">*</span></span>
+      </label>
+
+      <button class="btn btn-orange btn-submit" onclick="submitApplication()">
+        &#128683; Austrittsantrag absenden
+      </button>
+    </div>
+  </div>
+
+  <div id="successBox" class="card">
+    <div class="icon">&#128683;</div>
+    <h2>Antrag eingereicht!</h2>
+    <p id="successText">
+      Dein Austrittsantrag wurde übermittelt.<br>
+      Der Vorstand wird sich in Kürze bei dir melden.
+    </p>
+  </div>
+</main>
+
+<footer>Powered by Vereinsverwaltung &nbsp;·&nbsp; Alle Daten werden sicher in Firebase gespeichert</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// KONFIGURATION
+// ══════════════════════════════════════════════════════════════
+var FIREBASE_PROJECT = 'verinsbuchhaltung';
+var FIREBASE_API_KEY = 'AIzaSyC9IY5k9nXHCgXnJkqDBObRCeIRln-24H0';
+var FIRESTORE_BASE   = 'https://firestore.googleapis.com/v1/projects/' + FIREBASE_PROJECT + '/databases/(default)/documents';
+
+// ── Firestore REST Hilfsfunktionen ────────────────────────────
+function toFsValue(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === 'boolean')  return { booleanValue: v };
+  if (typeof v === 'number')   return { integerValue: String(Math.round(v)) };
+  if (typeof v === 'string')   return { stringValue: v };
+  if (Array.isArray(v))        return { arrayValue: { values: v.map(toFsValue) } };
+  if (typeof v === 'object')   return { mapValue: { fields: toFsFields(v) } };
+  return { stringValue: String(v) };
+}
+function toFsFields(obj) {
+  var f = {};
+  for (var k in obj) { if (obj.hasOwnProperty(k)) f[k] = toFsValue(obj[k]); }
+  return f;
+}
+function fromFsValue(v) {
+  if (v.stringValue  !== undefined) return v.stringValue;
+  if (v.integerValue !== undefined) return Number(v.integerValue);
+  if (v.booleanValue !== undefined) return v.booleanValue;
+  if (v.nullValue    !== undefined) return null;
+  if (v.arrayValue)  return (v.arrayValue.values || []).map(fromFsValue);
+  if (v.mapValue)    { var o={}; for(var k in v.mapValue.fields) o[k]=fromFsValue(v.mapValue.fields[k]); return o; }
+  return null;
+}
+
+async function fsSet(collection, docId, data) {
+  var url = FIRESTORE_BASE + '/' + collection + '/' + docId + '?key=' + FIREBASE_API_KEY;
+  var res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: toFsFields(data) })
+  });
+  if (!res.ok) { var e = await res.json().catch(function(){ return {}; }); throw new Error((e.error && e.error.message) || ('HTTP ' + res.status)); }
+  return res.json();
+}
+
+async function fsGet(collection, docId) {
+  var url = FIRESTORE_BASE + '/' + collection + '/' + docId + '?key=' + FIREBASE_API_KEY;
+  var res = await fetch(url);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// ── Vereinsname laden ─────────────────────────────────────────
+async function loadClubName() {
+  try {
+    var doc = await fsGet('config', 'clubData');
+    if (doc && doc.fields && doc.fields.clubName) {
+      var name = fromFsValue(doc.fields.clubName);
+      if (name) {
+        document.getElementById('clubNameHeader').textContent = name;
+        document.title = 'Austrittsantrag – ' + name;
+      }
+    }
+  } catch(e) {}
+}
+
+// ── Unterschriften-Pad ────────────────────────────────────────
+var isDrawing = false;
+var hasSignature = false;
+
+function initSignaturePad() {
+  var canvas = document.getElementById('signatureCanvas');
+  if (!canvas || canvas._padInit) return;
+  canvas._padInit = true;
+  var ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  function getPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+    var src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
+  }
+  function startDraw(e) { e.preventDefault(); isDrawing = true; var p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+  function draw(e) {
+    if (!isDrawing) return; e.preventDefault();
+    var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+    hasSignature = true; updateStep(2);
+    var el = document.getElementById('signatureStatus');
+    if (el) { el.textContent = 'Unterschrift vorhanden ✓'; el.style.color = '#27ae60'; }
+  }
+  function endDraw(e) { e.preventDefault(); isDrawing = false; ctx.beginPath(); }
+
+  canvas.addEventListener('mousedown',  startDraw);
+  canvas.addEventListener('mousemove',  draw);
+  canvas.addEventListener('mouseup',    endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', startDraw, { passive: false });
+  canvas.addEventListener('touchmove',  draw,      { passive: false });
+  canvas.addEventListener('touchend',   endDraw,   { passive: false });
+}
+
+function clearSignature() {
+  var canvas = document.getElementById('signatureCanvas');
+  if (!canvas) return;
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  hasSignature = false;
+  var el = document.getElementById('signatureStatus');
+  if (el) { el.textContent = 'Bitte hier unterschreiben'; el.style.color = ''; }
+}
+
+// ── Schrittanzeige ────────────────────────────────────────────
+function updateStep(n) {
+  for (var i = 1; i <= 3; i++) {
+    var s = document.getElementById('step' + i);
+    if (!s) continue;
+    s.className = i < n ? 'step done' : i === n ? 'step active' : 'step';
+  }
+}
+
+function setLoading(v) {
+  document.getElementById('loadingOverlay').className = v ? 'active' : '';
+}
+
+function showError(msg) {
+  var t = document.getElementById('errorToast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._t);
+  t._t = setTimeout(function() { t.style.display = 'none'; }, 4500);
+}
+
+// ── Antrag absenden ───────────────────────────────────────────
+async function submitApplication() {
+  var firstname = document.getElementById('appFirstname').value.trim();
+  var lastname  = document.getElementById('appLastname').value.trim();
+  var email     = document.getElementById('appEmail').value.trim();
+  var agree     = document.getElementById('appAgree').checked;
+
+  if (!firstname || !lastname) { showError('Bitte Vor- und Nachname eingeben!'); document.getElementById('appFirstname').focus(); return; }
+  if (!email || !email.includes('@')) { showError('Bitte eine gültige E-Mail-Adresse eingeben!'); document.getElementById('appEmail').focus(); return; }
+  if (!hasSignature) { showError('Bitte im Unterschriftsfeld unterschreiben!'); return; }
+  if (!agree) { showError('Bitte die Bestätigung anhaken!'); return; }
+
+  // Rate Limiting
+  var rlKey = 'exit_subs', now = Date.now();
+  var rlData = [];
+  try { rlData = JSON.parse(sessionStorage.getItem(rlKey) || '[]').filter(function(t) { return now - t < 3600000; }); } catch(e) {}
+  if (rlData.length >= 3) { showError('Zu viele Anträge in kurzer Zeit. Bitte warte eine Stunde.'); return; }
+  rlData.push(now);
+  try { sessionStorage.setItem(rlKey, JSON.stringify(rlData)); } catch(e) {}
+
+  var signature = null, signedAt = null;
+  if (hasSignature) {
+    var canvas = document.getElementById('signatureCanvas');
+    signature = canvas.toDataURL('image/png');
+    signedAt  = new Date().toISOString();
+  }
+
+  setLoading(true); updateStep(3);
+  try {
+    var id = Date.now();
+    await fsSet('resignations', String(id), {
+      id:           id,
+      firstname:    firstname,
+      lastname:     lastname,
+      email:        email,
+      memberNumber: document.getElementById('appMemberNumber').value.trim() || '',
+      birthdate:    document.getElementById('appBirthdate').value || '',
+      phone:        document.getElementById('appPhone').value.trim() || '',
+      exitDate:     document.getElementById('appExitDate').value || '',
+      reason:       document.getElementById('appReason').value || '',
+      note:         document.getElementById('appNote').value.trim() || '',
+      signature:    signature,
+      signedAt:     signedAt,
+      status:       'Ausstehend',
+      submittedAt:  new Date().toISOString()
+    });
+
+    document.getElementById('formBox').style.display    = 'none';
+    document.getElementById('successBox').style.display = 'block';
+    document.getElementById('successText').innerHTML    =
+      'Dein Austrittsantrag wurde eingereicht, <strong>' + firstname + ' ' + lastname + '</strong>.<br>' +
+      'Der Vorstand wird sich in Kürze bei dir melden.';
+
+  } catch(e) {
+    showError('Fehler beim Übermitteln: ' + e.message);
+    updateStep(1);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Start ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  initSignaturePad();
+  updateStep(1);
+  loadClubName();
+
+  ['appFirstname','appLastname','appEmail'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', function() {
+      if (document.getElementById('appFirstname').value.trim() &&
+          document.getElementById('appLastname').value.trim()  &&
+          document.getElementById('appEmail').value.trim()) updateStep(2);
+    });
+  });
+});
+</script>
+</body>
+</html>
